@@ -31,8 +31,8 @@ button{cursor:pointer;border:0;background:none}
 .icon[disabled]{opacity:.35;pointer-events:none}
 
 /* login */
-#login{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:radial-gradient(circle at 30% 20%,#FCE3DD,transparent 55%),linear-gradient(160deg,#FBE4DE,#F0BFC0 70%)}
-.card{background:#fff;border-radius:24px;padding:34px 30px;box-shadow:0 24px 60px rgba(90,42,62,.18);width:400px;max-width:100%;text-align:center}
+#login{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;align-content:center;padding:24px 16px;background:radial-gradient(circle at 30% 20%,#FCE3DD,transparent 55%),linear-gradient(160deg,#FBE4DE,#F0BFC0 70%)}
+.card{background:#fff;border-radius:24px;padding:34px 30px;box-shadow:0 24px 60px rgba(90,42,62,.18);width:min(400px,100%);text-align:center}
 .card h1{font-family:"Great Vibes";font-weight:400;font-size:46px;color:var(--rose);line-height:1.1}
 .card p{opacity:.75;margin:6px 0 20px}
 .pinbox{width:100%;text-align:center;letter-spacing:.5em;font-size:24px;padding:12px;border:1.5px solid var(--line);border-radius:14px;outline:none}
@@ -115,10 +115,16 @@ code{background:var(--blush);padding:1px 6px;border-radius:6px;font-size:13px}
 .savebar.show{display:flex}
 .savebar .btn{background:var(--rose)}
 @media (max-width:720px){
+  label.f input,label.f textarea,label.f select,.pinbox{font-size:16px}
+  .card{padding:28px 20px}
+  .tabs{-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
+  .icon{width:38px;height:38px}
   .grid{grid-template-columns:1fr}
   .item{grid-template-columns:1fr}
   .bar{padding:10px 14px}
   .status{display:none}
+  .brand small{display:none}
+  .bar{gap:8px;padding-top:calc(10px + env(safe-area-inset-top))}
   main{padding:18px 14px 120px}
   .panel{padding:16px}
 }
