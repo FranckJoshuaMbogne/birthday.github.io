@@ -73,12 +73,15 @@
   }
 
   /* ---------- rendering ---------- */
-  var KEY, PHOTOS, urlCache = {};
+  var KEY, PHOTOS, VIDEOS, urlCache = {}, videoCache = {};
+  var PLAY = '<span class="play" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>';
+  function hasVideo(m) { return m && m.video && m.video.id && VIDEOS[m.video.id]; }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
-  function ph(p, cls) {
-    if (!p || !p.id) return '<span class="ph ' + (cls || "") + '"></span>';
+  function ph(p, cls, extra) {
+    extra = extra || "";
+    if (!p || !p.id) return '<span class="ph ' + (cls || "") + '">' + extra + "</span>";
     var x = +p.x || 50, y = +p.y || 50, z = Math.max(1, +p.z || 1);
-    return '<span class="ph ' + (cls || "") + '"><img alt="" data-photo="' + esc(p.id) + '" style="object-position:' + x + '% ' + y + '%;transform:scale(' + z + ');transform-origin:' + x + '% ' + y + '%"></span>';
+    return '<span class="ph ' + (cls || "") + '"><img alt="" data-photo="' + esc(p.id) + '" style="object-position:' + x + '% ' + y + '%;transform:scale(' + z + ');transform-origin:' + x + '% ' + y + '%">' + extra + "</span>";
   }
   function quote(q, feather) {
     if (!q || !q.text) return "";
@@ -91,7 +94,8 @@
   var TILTS = [-4, 3, -2, 5, -5, 4, -3, 2, 6, -1];
   var LIFTS = [0, 22, 8, 12, -6, 20, 4, 14, 0, 18];
   function pol(m, i, d) {
-    return '<figure class="pol rv d' + (d % 4) + '" style="--r:' + TILTS[i % 10] + "deg;--y:" + LIFTS[i % 10] + 'px"><i class="tape"></i>' + ph(m.photo) +
+    var v = hasVideo(m);
+    return '<figure class="pol rv d' + (d % 4) + (v ? " has-video" : "") + '"' + (v ? ' data-video="' + esc(m.video.id) + '"' : "") + ' style="--r:' + TILTS[i % 10] + "deg;--y:" + LIFTS[i % 10] + 'px"><i class="tape"></i>' + ph(m.photo, "", v ? PLAY : "") +
       "<figcaption>" + esc(m.caption) + (m.sub ? "<small>" + esc(m.sub) + "</small>" : "") + "</figcaption></figure>";
   }
   var BIRD_HERO = '<svg class="hero-bird" width="190" height="150" viewBox="0 0 190 150" aria-hidden="true"><path class="trail" d="M10 120 C 40 90, 60 110, 80 80" stroke="#C9A25E" stroke-width="2" stroke-dasharray="5 7" fill="none"/><g transform="translate(110 70)"><path d="M-48 4 L-80 -12 L-72 6 L-84 16 Z" fill="#8E3B55"/><ellipse rx="52" ry="44" fill="#D96C80"/><ellipse cx="10" cy="17" rx="32" ry="24" fill="#FFF1EA"/><path class="wing" d="M-30 -8 C -10 -60, 30 -50, 20 -10 Z" fill="#8E3B55"/><circle cx="28" cy="-14" r="5" fill="#3A1C2A"/><circle cx="30" cy="-16" r="1.6" fill="#fff"/><path d="M48 -14 L64 -9 L48 -4 Z" fill="#C9A25E"/></g><path class="beat" d="M182 40 c0-8-10-10-13-3c-3-7-13-5-13 3c0 9 13 15 13 18c0-3 13-9 13-18z" fill="#D96C80"/></svg>';
@@ -117,7 +121,8 @@
     // STORY
     out.push('<section class="page" data-page="story">' + phead(st) + '<div class="timeline"><div class="branch" aria-hidden="true"></div>' +
       (st.moments || []).map(function (m) {
-        var art = m.photo && m.photo.id ? '<div class="m-art">' + ph(m.photo) + "</div>" : '<div class="m-art birthday' + (m.artStyle === "wine" ? " now" : "") + '"><span class="script">' + esc(m.artText) + "</span></div>";
+        var v = hasVideo(m);
+        var art = m.photo && m.photo.id ? '<div class="m-art' + (v ? " has-video" : "") + '"' + (v ? ' data-video="' + esc(m.video.id) + '" data-cap="' + esc(m.title) + '" role="button" tabindex="0" aria-label="Play video"' : "") + ">" + ph(m.photo, "", v ? PLAY : "") + "</div>" : '<div class="m-art birthday' + (m.artStyle === "wine" ? " now" : "") + '"><span class="script">' + esc(m.artText) + "</span></div>";
         return '<article class="moment rv"><div class="bloom"></div>' + art + '<div class="m-text"><small>' + esc(m.label) + "</small><h3>" + esc(m.title) + "</h3><p>" + esc(m.text) + "</p>" + (m.button ? '<a class="btn" href="#/memories">' + esc(m.button) + "</a>" : "") + "</div></article>";
       }).join("") + "</div>" + quote(st.quote) + "</section>");
 
@@ -138,7 +143,7 @@
       '</ul><a class="btn line" href="#/home">' + esc(wi.back) + "</a></div>" + quote(wi.quote) + "</section>");
 
     out.push('<footer class="foot">' + esc(s.footer) + ' <span class="script">' + esc(s.footerName) + "</span> · " + esc(s.footerDate) + "</footer>");
-    out.push('<div class="lightbox" id="lightbox" hidden><button type="button" aria-label="Close">×</button><img alt=""><p></p></div>');
+    out.push('<div class="lightbox" id="lightbox" hidden><button type="button" aria-label="Close">×</button><img alt=""><video controls playsinline preload="auto"></video><span class="lb-wait">Opening the video…</span><p></p></div>');
     return out.join("");
   }
 
@@ -158,9 +163,36 @@
     });
   }
 
+  function videoURL(id) {
+    if (!videoCache[id]) {
+      var meta = VIDEOS[id];
+      videoCache[id] = fetch("videos/" + encodeURIComponent(id) + ".bin").then(function (r) { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+        .then(function (b) { return LB.decBytes(KEY, meta.iv, b); })
+        .then(function (u) { return URL.createObjectURL(new Blob([u], { type: meta.mime || "video/mp4" })); });
+      videoCache[id].catch(function () { delete videoCache[id]; });
+    }
+    return videoCache[id];
+  }
+  function openVideo(id, cap) {
+    var lb = $("#lightbox"), v = $("video", lb), wait = $(".lb-wait", lb);
+    lb.className = "lightbox is-video loading"; $("p", lb).textContent = cap || ""; wait.textContent = "Opening the video…";
+    lb.hidden = false; v.removeAttribute("src");
+    if (music.on) toggleMusic();
+    videoURL(id).then(function (u) {
+      if (lb.hidden) return;
+      v.src = u; lb.classList.remove("loading");
+      var p = v.play(); if (p && p.catch) p.catch(function () {});
+    }).catch(function () { wait.textContent = "This video couldn’t be opened. Try again in a moment."; });
+  }
+  function closeLightbox() {
+    var lb = $("#lightbox"); if (!lb) return;
+    var v = $("video", lb); if (v) v.pause();
+    lb.hidden = true;
+  }
+
   /* ---------- open the site ---------- */
   function openSite(key, data, animate) {
-    KEY = key; PHOTOS = data.photos || {};
+    KEY = key; PHOTOS = data.photos || {}; VIDEOS = data.videos || {};
     var app = $("#app");
     app.innerHTML = render(data.content || {});
     loadPhotos(app);
@@ -190,7 +222,7 @@
     addEventListener("scroll", function () { nav.classList.toggle("solid", scrollY > 30); growBranch(); }, { passive: true });
     $("#burger").addEventListener("click", function () { setMenu(!nav.classList.contains("open")); });
     $("#links").addEventListener("click", function () { setMenu(false); });
-    addEventListener("keydown", function (e) { if (e.key === "Escape") { setMenu(false); $("#lightbox").hidden = true; } });
+    addEventListener("keydown", function (e) { if (e.key === "Escape") { setMenu(false); closeLightbox(); } });
     addEventListener("resize", function () { if (innerWidth > 860) setMenu(false); });
 
     io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }); }, { threshold: .15, rootMargin: "0px 0px -40px 0px" });
@@ -203,13 +235,20 @@
       });
       p.addEventListener("pointerleave", function () { p.style.removeProperty("--tx"); p.style.removeProperty("--ty"); });
       p.addEventListener("click", function () {
+        var cap = p.querySelector("figcaption").firstChild.textContent.trim();
+        if (p.hasAttribute("data-video")) return openVideo(p.getAttribute("data-video"), cap);
         var img = p.querySelector("img"); if (!img || !img.src) return;
-        var lb = $("#lightbox"); $("img", lb).src = img.src;
-        $("p", lb).textContent = p.querySelector("figcaption").firstChild.textContent.trim();
+        var lb = $("#lightbox"); lb.className = "lightbox"; $("img", lb).src = img.src;
+        $("p", lb).textContent = cap;
         lb.hidden = false;
       });
     });
-    $("#lightbox").addEventListener("click", function () { this.hidden = true; });
+    $$(".m-art.has-video").forEach(function (a) {
+      var go = function () { openVideo(a.getAttribute("data-video"), a.getAttribute("data-cap")); };
+      a.addEventListener("click", go);
+      a.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    });
+    $("#lightbox").addEventListener("click", function (e) { if (e.target === this || e.target.tagName === "BUTTON" || e.target.tagName === "IMG") closeLightbox(); });
 
     $$(".env").forEach(function (env) {
       env.addEventListener("click", function () {

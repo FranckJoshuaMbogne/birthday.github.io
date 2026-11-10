@@ -201,6 +201,19 @@ img{display:block;max-width:100%}
 .lightbox{position:fixed;inset:0;z-index:70;background:rgba(58,28,42,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;animation:appIn .4s}
 .lightbox[hidden]{display:none}
 .lightbox img{max-width:92vw;max-height:76vh;border-radius:6px;box-shadow:0 30px 80px rgba(0,0,0,.4);animation:zoom .5s var(--ease)}
+.lightbox video,.lightbox .lb-wait{display:none}
+.lightbox.is-video img{display:none}
+.lightbox.is-video video{display:block;max-width:94vw;max-height:78vh;border-radius:8px;background:#000;box-shadow:0 30px 80px rgba(0,0,0,.4);animation:zoom .5s var(--ease)}
+.lightbox.is-video.loading video{display:none}
+.lightbox.is-video.loading .lb-wait{display:block;color:var(--cream);font-family:Cormorant;font-style:italic;font-size:22px;padding:40px 0;animation:pulseText 1.4s ease-in-out infinite}
+@keyframes pulseText{50%{opacity:.5}}
+.pol .ph,.m-art .ph{position:relative}
+.play{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:rgba(255,247,241,.9);color:var(--rose);display:grid;place-items:center;box-shadow:0 8px 24px rgba(58,28,42,.3);transition:transform .3s var(--ease);z-index:2;padding-left:3px}
+.play::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid rgba(255,247,241,.7);animation:ring 2s ease-out infinite}
+@keyframes ring{from{transform:scale(.9);opacity:1}to{transform:scale(1.35);opacity:0}}
+.has-video{cursor:pointer}
+.has-video:hover .play{transform:scale(1.1)}
+.m-art.has-video .play{width:72px;height:72px;margin:-36px 0 0 -36px}
 @keyframes zoom{from{transform:scale(.9);opacity:0}}
 .lightbox p{color:var(--cream);font-family:"Great Vibes";font-size:36px;margin-top:10px}
 .lightbox button{position:absolute;top:18px;right:22px;font-size:40px;color:var(--cream);width:48px;height:48px}

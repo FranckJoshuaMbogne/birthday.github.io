@@ -6,7 +6,7 @@
   var LB = window.LB;
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var CFG_KEY = "littlebird.admin.github";
-  var S = { key: null, vault: null, content: null, photos: {}, saved: {}, pending: {}, urls: {}, deleted: {}, dirty: false, tab: "home", token: "" };
+  var S = { key: null, vault: null, content: null, photos: {}, saved: {}, pending: {}, urls: {}, deleted: {}, videos: {}, savedV: {}, pendingV: {}, vurls: {}, dirty: false, tab: "home", token: "" };
   var PAGES = [["home", "Home"], ["story", "Our Story"], ["memories", "Memories"], ["notes", "Little Notes"], ["wishes", "Wishes"]];
 
   /* ---------- small DOM helpers ---------- */
@@ -84,7 +84,7 @@
     }).then(function (key) {
       S.key = key; return LB.decJSON(key, S.vault.iv, S.vault.ct);
     }).then(function (data) {
-      S.content = data.content; S.photos = data.photos || {};
+      S.content = data.content; S.photos = data.photos || {}; S.videos = data.videos || {}; S.savedV = JSON.parse(JSON.stringify(S.videos));
       S.saved = JSON.parse(JSON.stringify(S.photos));
       $("#login").style.display = "none"; $("#admin").style.display = "block";
       buildTabs(); show("home");
@@ -116,16 +116,115 @@
       var c = document.createElement("canvas"); c.width = Math.round(w * s); c.height = Math.round(hgt * s);
       c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
       return new Promise(function (res) { c.toBlob(res, "image/jpeg", .84); });
-    }).then(function (blob) {
-      return blob.arrayBuffer().then(function (ab) {
-        var id = newId();
-        S.pending[id] = new Uint8Array(ab);
-        S.photos[id] = { name: (file.name || "photo").replace(/\.[^.]+$/, "").slice(0, 40), added: Date.now() };
-        S.urls[id] = Promise.resolve(URL.createObjectURL(blob));
-        dirty();
-        return id;
+    }).then(function (blob) { return addPhotoBlob(blob, file.name || "photo"); });
+  }
+  function addPhotoBlob(blob, name) {
+    return blob.arrayBuffer().then(function (ab) {
+      var id = newId();
+      S.pending[id] = new Uint8Array(ab);
+      S.photos[id] = { name: String(name).replace(/\.[^.]+$/, "").slice(0, 40), added: Date.now() };
+      S.urls[id] = Promise.resolve(URL.createObjectURL(blob));
+      dirty();
+      return id;
+    });
+  }
+
+  /* ---------- videos ---------- */
+  var MAX_MB = 50, WARN_MB = 20;
+  function mb(n) { return (n / 1048576).toFixed(n > 10485760 ? 0 : 1) + " MB"; }
+  function pickVideo() {
+    return new Promise(function (resolve) {
+      var inp = $("#videoIn"); inp.value = "";
+      inp.onchange = function () {
+        var f = inp.files && inp.files[0]; if (!f) return resolve(null);
+        if (f.size > MAX_MB * 1048576) { toast("That video is " + mb(f.size) + ". Please keep videos under " + MAX_MB + " MB (trim or compress it first).", true, 7000); return resolve(null); }
+        toast("Adding video…");
+        f.arrayBuffer().then(function (ab) {
+          var id = newId();
+          S.pendingV[id] = new Uint8Array(ab);
+          S.videos[id] = { name: f.name.replace(/\.[^.]+$/, "").slice(0, 40), size: f.size, mime: f.type || "video/mp4", added: Date.now() };
+          S.vurls[id] = Promise.resolve(URL.createObjectURL(f));
+          dirty();
+          if (f.size > WARN_MB * 1048576) toast("Added. It’s " + mb(f.size) + ", so it may take a while to open on her phone.", false, 6000);
+          resolve(id);
+        }, function () { toast("Couldn’t read that video.", true); resolve(null); });
+      };
+      inp.click();
+    });
+  }
+  function videoURL(id) {
+    if (S.vurls[id]) return S.vurls[id];
+    var meta = S.videos[id];
+    S.vurls[id] = !meta ? Promise.reject(new Error("missing")) :
+      fetchFile("videos/" + id + ".bin").then(function (b) { return LB.decBytes(S.key, meta.iv, b); })
+        .then(function (u) { return URL.createObjectURL(new Blob([u], { type: meta.mime || "video/mp4" })); });
+    S.vurls[id].catch(function () { delete S.vurls[id]; });
+    return S.vurls[id];
+  }
+  // grab a frame from the video to use as its cover photo
+  function coverFromVideo(id) {
+    return videoURL(id).then(function (url) {
+      return new Promise(function (res, rej) {
+        var v = document.createElement("video"), done = false;
+        var fail = function () { if (!done) { done = true; rej(new Error("frame")); } };
+        var t = setTimeout(fail, 15000);
+        v.muted = true; v.playsInline = true; v.setAttribute("playsinline", ""); v.preload = "auto"; v.src = url;
+        v.onloadedmetadata = function () { v.currentTime = Math.min(1, (v.duration || 2) * 0.15); };
+        v.onseeked = function () {
+          if (done) return; clearTimeout(t);
+          var w = v.videoWidth, hh = v.videoHeight; if (!w || !hh) return fail();
+          var sc = Math.min(1, 1800 / Math.max(w, hh)), c = document.createElement("canvas");
+          c.width = Math.round(w * sc); c.height = Math.round(hh * sc);
+          try { c.getContext("2d").drawImage(v, 0, 0, c.width, c.height); } catch (e) { return fail(); }
+          c.toBlob(function (b) { if (!b) return fail(); done = true; res(addPhotoBlob(b, (S.videos[id].name || "video") + " cover")); }, "image/jpeg", .86);
+        };
+        v.onerror = fail; v.load();
       });
     });
+  }
+  function videoField(it, o) {
+    o = o || {};
+    var box = h("div", { class: "vf" });
+    function setCover() {
+      toast("Taking a frame from the video…");
+      return coverFromVideo(it.video.id).then(function (pid) { it.photo = { id: pid, x: 50, y: 45, z: 1 }; dirty(); if (o.onchange) o.onchange(); },
+        function () { toast("This browser can’t read frames from that video. Choose a cover photo instead.", true, 6000); });
+    }
+    function add() {
+      pickVideo().then(function (id) {
+        if (!id) return;
+        it.video = { id: id }; dirty();
+        if (!(it.photo && it.photo.id) || o.autoCover) setCover().then(function () { draw(); if (o.onchange) o.onchange(); });
+        else { draw(); if (o.onchange) o.onchange(); }
+      });
+    }
+    function draw() {
+      box.innerHTML = "";
+      var v = it.video && it.video.id && S.videos[it.video.id];
+      box.appendChild(h("span", { class: "vlabel", text: "VIDEO" }));
+      if (v) {
+        var prev = h("div", { class: "vprev" });
+        var play = h("button", { class: "btn small line", type: "button", text: "▶ Preview", onclick: function () {
+          play.textContent = "Loading…";
+          videoURL(it.video.id).then(function (u) { prev.innerHTML = ""; prev.appendChild(h("video", { src: u, controls: true, playsinline: true, autoplay: true })); play.remove(); },
+            function () { play.textContent = "Couldn’t load"; });
+        } });
+        box.appendChild(h("div", { class: "vinfo", text: "🎬 " + (v.name || "Video") + (v.size ? " · " + mb(v.size) : "") + (S.pendingV[it.video.id] ? " · new" : "") }));
+        if (/quicktime/.test(v.mime || "")) box.appendChild(h("p", { class: "vwarn", text: "This is an iPhone .MOV — it plays on iPhones and Macs, but may not play on some Android phones or Windows. An MP4 works everywhere." }));
+        box.appendChild(prev);
+        box.appendChild(h("div", { class: "row" }, [play,
+          h("button", { class: "btn small line", type: "button", text: "Cover from video", title: "Use a frame of the video as the cover photo", onclick: function () { setCover(); } }),
+          h("button", { class: "btn small line", type: "button", text: "Replace", onclick: add }),
+          h("button", { class: "btn small danger", type: "button", text: "Remove video", onclick: function () { it.video = null; dirty(); draw(); if (o.onchange) o.onchange(); } })
+        ]));
+        box.appendChild(h("p", { class: "tip", text: "The photo above is the cover. She taps it to play the video." }));
+      } else {
+        box.appendChild(h("div", { class: "row" }, [h("button", { class: "btn small line", type: "button", text: "🎬 Add a video", onclick: add })]));
+        box.appendChild(h("p", { class: "tip", text: "Optional. The photo becomes the cover with a play button. MP4 under " + WARN_MB + " MB is best." }));
+      }
+    }
+    draw();
+    return box;
   }
   function pickFiles(multiple) {
     return new Promise(function (resolve) {
@@ -146,6 +245,12 @@
     (c.story.moments || []).forEach(function (m, i) { if (m.photo) refs.push({ where: "Our Story " + (i + 1), obj: m, key: "photo" }); });
     (c.memories.items || []).forEach(function (m, i) { if (m.photo) refs.push({ where: "Memory " + (i + 1), obj: m, key: "photo" }); });
     return refs;
+  }
+  function videoRefs() {
+    var out = [];
+    (S.content.story.moments || []).forEach(function (m) { if (m.video && m.video.id && m.photo && m.photo.id) out.push(m); });
+    (S.content.memories.items || []).forEach(function (m) { if (m.video && m.video.id) out.push(m); });
+    return out.map(function (m) { return { video: m.video }; });
   }
   function usage(id) { return photoRefs().filter(function (r) { return r.obj[r.key] && r.obj[r.key].id === id; }); }
 
@@ -286,6 +391,9 @@
         if (o.uploadOnAdd) pickFiles(true).then(function (ids) { ids.forEach(function (id) { arr.push(o.make(id)); }); if (ids.length) { dirty(); draw(); } });
         else make();
       } }));
+      (o.extra || []).forEach(function (x) {
+        box.appendChild(h("button", { class: "add", type: "button", style: "margin-top:10px", text: "+ " + x.text, onclick: function () { x.run(arr, draw); } }));
+      });
     }
     draw();
     return box;
@@ -336,7 +444,8 @@
         addText: "Add a moment", label: function (it, i) { return "MOMENT " + (i + 1); },
         make: function () { return { label: "NEW CHAPTER", title: "A new moment", text: "", photo: null, artText: "♥", artStyle: "rose" }; },
         render: function (it, i, redraw) {
-          var side = photoField(it, "photo", { aspect: "4/3", allowNone: true, noneText: "Use text card instead", emptyText: "No photo — shows a pink card with the text below", onchange: redraw });
+          var side = h("div", {}, [photoField(it, "photo", { aspect: "4/3", allowNone: true, noneText: "Use text card instead", emptyText: "No photo — shows a pink card with the text below", onchange: redraw }),
+            videoField(it, { onchange: redraw })]);
           var fields = [grid([
             field(it, "label", "Small label (e.g. NAVRATRI NIGHTS)"), field(it, "title", "Title"),
             field(it, "text", "Story text", { multi: true, rows: 4, full: true }),
@@ -361,8 +470,19 @@
         addText: "Add memories (upload photos)", uploadOnAdd: true,
         label: function (it, i) { return "MEMORY " + (i + 1) + (i < (+S.content.home.memoriesCount || 0) ? " · ON HOME" : ""); },
         make: function (id) { return { caption: "A new memory", sub: "", photo: { id: id, x: 50, y: 40, z: 1 } }; },
-        render: function (it) {
-          return [photoField(it, "photo", { aspect: "1/1" }), grid([field(it, "caption", "Caption (handwritten)"), field(it, "sub", "Small line under it")])];
+        extra: [{ text: "Add a video memory", run: function (arr, redraw) {
+          pickVideo().then(function (vid) {
+            if (!vid) return;
+            var it = { caption: "A new memory", sub: "", photo: null, video: { id: vid } };
+            arr.push(it); dirty(); redraw();
+            toast("Taking a cover from the video…");
+            coverFromVideo(vid).then(function (pid) { it.photo = { id: pid, x: 50, y: 45, z: 1 }; dirty(); redraw(); },
+              function () { toast("Couldn’t take a cover from this video — choose a cover photo for it.", true, 6000); });
+          });
+        } }],
+        render: function (it, i, redraw) {
+          return [h("div", {}, [photoField(it, "photo", { aspect: "1/1", emptyText: "Choose a cover photo" }), videoField(it, { onchange: redraw })]),
+            grid([field(it, "caption", "Caption (handwritten)"), field(it, "sub", "Small line under it")])];
         }
       }));
       m.appendChild(h("div", { style: "height:18px" }));
@@ -475,12 +595,18 @@
   function publish() {
     if (publishing) return;
     if (!ghReady()) { show("settings"); toast("Add your GitHub token first.", true, 4000); return; }
+    var noCover = (S.content.memories.items || []).map(function (m, i) { return !(m.photo && m.photo.id) ? i + 1 : 0; }).filter(Boolean);
+    if (noCover.length) { show("memories"); toast("Memory " + noCover[0] + " needs a cover photo.", true, 5000); return; }
     var missing = photoRefs().filter(function (r) { return r.obj[r.key] && r.obj[r.key].id && !S.photos[r.obj[r.key].id]; });
     if (missing.length) { toast("A photo is missing in: " + missing[0].where, true, 5000); return; }
     publishing = true;
     var btns = [$("#saveBtn"), $("#savebarBtn")]; btns.forEach(function (b) { b.disabled = true; b.textContent = "Publishing…"; });
     var branch = encodeURIComponent(S.gh.branch), base, tree = [];
     var newIds = Object.keys(S.pending), manifest = JSON.parse(JSON.stringify(S.photos));
+    var manifestV = {};
+    videoRefs().forEach(function (r) { var id = r.video.id; if (S.videos[id]) manifestV[id] = JSON.parse(JSON.stringify(S.videos[id])); });
+    var newV = Object.keys(manifestV).filter(function (id) { return S.pendingV[id]; });
+    var dropV = Object.keys(S.savedV).filter(function (id) { return !manifestV[id]; });
     gh("/git/ref/heads/" + branch).then(function (ref) {
       base = ref.object.sha; return gh("/git/commits/" + base);
     }).then(function (commit) {
@@ -493,8 +619,19 @@
           }).then(function (blob) { tree.push({ path: "photos/" + id + ".bin", mode: "100644", type: "blob", sha: blob.sha }); });
         });
       }, Promise.resolve()).then(function () {
+        return newV.reduce(function (p, id, n) {
+          return p.then(function () {
+            toast("Uploading video " + (n + 1) + " of " + newV.length + "…", false, 60000);
+            return LB.encBytes(S.key, S.pendingV[id]).then(function (r) {
+              manifestV[id].iv = r.iv;
+              return gh("/git/blobs", { method: "POST", body: { content: LB.toB64(r.ct), encoding: "base64" } });
+            }).then(function (blob) { tree.push({ path: "videos/" + id + ".bin", mode: "100644", type: "blob", sha: blob.sha }); });
+          });
+        }, Promise.resolve());
+      }).then(function () {
+        dropV.forEach(function (id) { tree.push({ path: "videos/" + id + ".bin", mode: "100644", type: "blob", sha: null }); });
         Object.keys(S.deleted).forEach(function (id) { tree.push({ path: "photos/" + id + ".bin", mode: "100644", type: "blob", sha: null }); });
-        return LB.encJSON(S.key, { content: S.content, photos: manifest });
+        return LB.encJSON(S.key, { content: S.content, photos: manifest, videos: manifestV });
       }).then(function (enc) {
         var vault = { v: 2, iter: S.vault.iter, salt: S.vault.salt, iv: enc.iv, ct: enc.ct };
         tree.push({ path: "vault.json", mode: "100644", type: "blob", content: JSON.stringify(vault) });
@@ -505,6 +642,7 @@
       });
     }).then(function () {
       S.photos = manifest; S.saved = JSON.parse(JSON.stringify(manifest)); S.pending = {}; S.deleted = {};
+      S.videos = manifestV; S.savedV = JSON.parse(JSON.stringify(manifestV)); S.pendingV = {};
       clean(); toast("Published ♥ The site updates in about a minute.", false, 5000);
       if (S.tab === "photos") show("photos");
     }).catch(function (e) {
