@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Little bird · Admin</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cellipse cx='50' cy='56' rx='40' ry='34' fill='%235A2A3E'/%3E%3Cellipse cx='57' cy='68' rx='24' ry='18' fill='%23FFF1EA'/%3E%3Ccircle cx='68' cy='46' r='5' fill='%23fff'/%3E%3Cpath d='M88 44 L99 49 L88 54Z' fill='%23C9A25E'/%3E%3C/svg%3E">
+<style>
+@font-face{font-family:"Great Vibes";src:url(fonts/greatvibes.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Cormorant";font-weight:600;src:url(fonts/cormorant-600.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Nunito";font-weight:400;src:url(fonts/nunito-400.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Nunito";font-weight:600;src:url(fonts/nunito-600.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Nunito";font-weight:700;src:url(fonts/nunito-700.woff2) format("woff2");font-display:swap}
+:root{--cream:#FFF7F1;--blush:#F9DDD6;--petal:#F2B8B5;--rose:#D96C80;--wine:#8E3B55;--plum:#5A2A3E;--gold:#C9A25E;--line:#F0D6CF;--ok:#3f8a5a;--bad:#b23a4f}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Nunito,system-ui,sans-serif;color:var(--plum);background:var(--cream);font-size:15px;line-height:1.5;min-height:100vh}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+.script{font-family:"Great Vibes",cursive}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:30px;background:var(--rose);color:#fff;font-weight:700;font-size:14px;white-space:nowrap;transition:transform .15s,opacity .2s}
+.btn:active{transform:scale(.97)}
+.btn.line{background:#fff;color:var(--plum);border:1.5px solid var(--line)}
+.btn.dark{background:var(--plum)}
+.btn.small{padding:6px 12px;font-size:13px}
+.btn.danger{background:#fff;color:var(--bad);border:1.5px solid #f1c9cf}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.icon{width:34px;height:34px;border-radius:50%;display:inline-grid;place-items:center;background:#fff;border:1.5px solid var(--line);font-size:15px;flex:none}
+.icon:hover{border-color:var(--rose)}
+.icon.del:hover{border-color:var(--bad);color:var(--bad)}
+.icon[disabled]{opacity:.35;pointer-events:none}
+
+/* login */
+#login{min-height:100vh;display:grid;place-items:center;padding:24px 16px;background:radial-gradient(circle at 30% 20%,#FCE3DD,transparent 55%),linear-gradient(160deg,#FBE4DE,#F0BFC0 70%)}
+.card{background:#fff;border-radius:24px;padding:34px 30px;box-shadow:0 24px 60px rgba(90,42,62,.18);width:400px;max-width:100%;text-align:center}
+.card h1{font-family:"Great Vibes";font-weight:400;font-size:46px;color:var(--rose);line-height:1.1}
+.card p{opacity:.75;margin:6px 0 20px}
+.pinbox{width:100%;text-align:center;letter-spacing:.5em;font-size:24px;padding:12px;border:1.5px solid var(--line);border-radius:14px;outline:none}
+.pinbox:focus{border-color:var(--rose)}
+.err{color:var(--bad);font-weight:600;font-size:13px;min-height:20px;margin-top:10px}
+
+/* shell */
+#admin{display:none}
+.top{position:sticky;top:0;z-index:20;background:rgba(255,247,241,.96);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:12px;padding:12px 20px;max-width:1100px;margin:0 auto}
+.brand{font-family:"Great Vibes";font-size:30px;color:var(--rose);line-height:1;margin-right:auto}
+.brand small{font-family:Nunito;font-size:11px;letter-spacing:.2em;color:var(--plum);opacity:.6;margin-left:6px;vertical-align:middle}
+.status{font-size:13px;font-weight:600;opacity:.75}
+.status.dirty{color:var(--rose);opacity:1}
+.tabs{display:flex;gap:4px;padding:0 14px;max-width:1100px;margin:0 auto;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{padding:10px 14px;font-weight:700;font-size:13px;letter-spacing:.06em;border-bottom:3px solid transparent;opacity:.6;white-space:nowrap}
+.tabs button.on{opacity:1;border-color:var(--rose)}
+main{max-width:1100px;margin:0 auto;padding:24px 20px 120px}
+h2.sec{font-family:Cormorant;font-weight:600;font-size:30px;margin:6px 0 4px}
+.help{font-size:13px;opacity:.7;margin-bottom:18px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:18px}
+.panel h3{font-size:12px;letter-spacing:.2em;color:var(--gold);font-weight:700;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid .full{grid-column:1/-1}
+label.f{display:block}
+label.f>span{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;margin-bottom:5px;opacity:.75}
+label.f input,label.f textarea,label.f select{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fffdfb;outline:none;transition:border-color .2s}
+label.f textarea{resize:vertical;min-height:84px;line-height:1.5}
+label.f input:focus,label.f textarea:focus,label.f select:focus{border-color:var(--rose)}
+.item{border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;background:#fffdfb;display:grid;grid-template-columns:240px 1fr;gap:18px}
+.item.noimg{grid-template-columns:1fr}
+.item-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.item-head b{font-size:12px;letter-spacing:.18em;color:var(--gold);margin-right:auto}
+.add{width:100%;padding:16px;border:2px dashed var(--petal);border-radius:16px;color:var(--rose);font-weight:700;background:transparent}
+.add:hover{background:#fff}
+
+/* photo field */
+.pf .frame{position:relative;width:100%;overflow:hidden;border-radius:10px;background:var(--blush);cursor:crosshair;touch-action:pan-y}
+.pf .frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none}
+.pf .frame .dot{position:absolute;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px var(--rose),0 2px 6px rgba(0,0,0,.3);pointer-events:none}
+.pf .frame .empty{position:absolute;inset:0;display:grid;place-items:center;font-size:13px;opacity:.6;text-align:center;padding:10px}
+.pf .row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.pf .zoom{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;font-weight:700;opacity:.8}
+.pf .zoom input{flex:1;accent-color:var(--rose)}
+.pf .tip{font-size:11px;opacity:.55;margin-top:4px}
+
+/* library */
+.lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.lib figure{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.lib figure .th{aspect-ratio:1/1;background:var(--blush) center/cover no-repeat;position:relative}
+.lib figure .badge{position:absolute;top:8px;left:8px;background:rgba(255,255,255,.92);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700}
+.lib figure .badge.new{background:var(--rose);color:#fff}
+.lib figcaption{padding:8px;display:flex;gap:6px;justify-content:center}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:50;background:rgba(58,28,42,.55);display:none;align-items:flex-end;justify-content:center}
+.modal.show{display:flex}
+.sheet{background:var(--cream);width:min(900px,100%);max-height:86vh;overflow:auto;border-radius:22px 22px 0 0;padding:20px}
+.sheet-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.sheet-head h3{font-family:Cormorant;font-size:26px;margin-right:auto}
+.pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.pick button{aspect-ratio:1/1;border-radius:12px;background:var(--blush) center/cover no-repeat;border:3px solid transparent}
+.pick button:hover,.pick button.on{border-color:var(--rose)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);background:var(--plum);color:#fff;padding:12px 20px;border-radius:30px;font-weight:600;font-size:14px;z-index:60;transition:transform .35s;max-width:calc(100% - 32px);text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.savebar.show~.toast{bottom:78px}
+.toast.bad{background:var(--bad)}
+.steps{padding-left:20px;font-size:14px}.steps li{margin-bottom:6px}
+code{background:var(--blush);padding:1px 6px;border-radius:6px;font-size:13px}
+.savebar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--plum);color:#fff;padding:12px 20px;display:none;align-items:center;justify-content:center;gap:14px;font-weight:600}
+.savebar.show{display:flex}
+.savebar .btn{background:var(--rose)}
+@media (max-width:720px){
+  .grid{grid-template-columns:1fr}
+  .item{grid-template-columns:1fr}
+  .bar{padding:10px 14px}
+  .status{display:none}
+  main{padding:18px 14px 120px}
+  .panel{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<section id="login">
+  <form class="card" id="loginForm" autocomplete="off">
+    <h1>Admin</h1>
+    <p>Enter the birthday code to edit the site.</p>
+    <input class="pinbox" id="pinIn" type="password" inputmode="numeric" maxlength="8" placeholder="••••••••" aria-label="Code">
+    <div style="margin-top:16px"><button class="btn" type="submit" style="width:100%">Open editor</button></div>
+    <div class="err" id="loginErr"></div>
+  </form>
+</section>
+
+<section id="admin">
+  <div class="top">
+    <div class="bar">
+      <div class="brand">Little bird <small>ADMIN</small></div>
+      <span class="status" id="status">All changes saved</span>
+      <a class="btn line small" href="./" target="_blank" rel="noopener">View site ↗</a>
+      <button class="btn small" id="saveBtn" type="button" disabled>Publish</button>
+    </div>
+    <nav class="tabs" id="tabs"></nav>
+  </div>
+  <main id="main"></main>
+</section>
+
+<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<input type="file" id="fileIn" accept="image/*" multiple hidden>
+<div class="savebar" id="savebar"><span id="savebarText">You have unpublished changes</span><button class="btn small" type="button" id="savebarBtn">Publish now</button></div>
+<div class="toast" id="toast"></div>
+
+<script src="crypto.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
